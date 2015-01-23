@@ -4,7 +4,7 @@
 
 The Shopify theme gem is a command line tool that lets you make live changes to themes on your Shopify store. If the command line is scary, check out the [Desktop Theme Editor app](http://apps.shopify.com/desktop-theme-editor).
 
-It will watch your local folders for any changes in your theme (including adding and removing files) and will update your .myshopify.com store to the latest changes. 
+It will watch your local folders for any changes in your theme (including adding and removing files) and will update your .myshopify.com store to the latest changes.
 
 ![Shopify theme gem](https://dl.dropboxusercontent.com/u/669627/terminalreadme.png)
 
@@ -15,9 +15,9 @@ remove via the web inspector in Chrome or Safari.
 
 # Requirements
 
-This gem works with OS X or Windows with Ruby 1.9. 
+This gem works with OS X or Windows with Ruby 1.9.
 
-First time installing Ruby on windows? Try [Rubyinstaller](http://http://rubyinstaller.org/). 
+First time installing Ruby on windows? Try [Rubyinstaller](http://http://rubyinstaller.org/).
 
 # Installation
 
@@ -96,16 +96,6 @@ Open the store in the default browser
 
 ```
 theme open
-```
-
-Bootstrap a new theme with [Timber](http://www.shopify.com/timber)
-
-```
-# use latest stable
-theme bootstrap api_key password shop_name theme_name
-
-# use latest build
-theme bootstrap api_key password shop_name theme_name master
 ```
 
 # Common Problems
