@@ -1,4 +1,5 @@
 require 'httparty'
+require 'shopify_theme/config'
 module ShopifyTheme
   include HTTParty
   @@current_api_call_count = 0
@@ -96,14 +97,26 @@ module ShopifyTheme
     end
   end
 
+  def self.environment=(environment)
+    @config = nil
+    @environment = environment
+  end
+  
+  def self.config_path=(config_path)
+    @config = nil
+    @config_path = config_path
+  end
+  
+  def self.environment
+    @environment
+  end
+  
+  def self.config_path
+    @config_path
+  end
+  
   def self.config
-    @config ||= if File.exist? 'config.yml'
-      config = YAML.load(File.read('config.yml'))
-      config
-    else
-      puts "config.yml does not exist!" unless test?
-      {}
-    end
+    @config ||= ShopifyTheme::Config.new(path: self.config_path, environment: self.environment)
   end
 
   def self.config=(config)
@@ -131,6 +144,7 @@ module ShopifyTheme
   end
 
   def self.check_config
+    puts "checking config for #{self.config[:store]}"
     shopify.get(path).code == 200
   end
 

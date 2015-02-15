@@ -35,6 +35,15 @@ module ShopifyTheme
       map shortcut => command.to_sym
     end
 
+    class_option :environment, type: :string, default: 'development', desc: "which config environment to use"
+    class_option :config_path, type: :string, default: 'config.yml', desc: "path to a configuration file"
+
+    def initialize(*args)
+      super
+      @config = ShopifyTheme::Config.new(path: options[:config_path], environment: options[:environment])
+      ShopifyTheme.config = @config
+    end
+    
     desc "check", "check configuration"
     def check
       if ShopifyTheme.check_config
@@ -169,7 +178,7 @@ module ShopifyTheme
     protected
 
     def config
-      @config ||= YAML.load_file 'config.yml'
+      @config ||= ShopifyTheme::Config.new(path: options[:config_path], environment: options[:environment])
     end
 
     def shop_theme_url
