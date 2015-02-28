@@ -123,7 +123,7 @@ module ShopifyTheme
         next unless local_assets_list.include?(asset)
         send_asset(asset, options['quiet'])
       end
-      invoke :update_git_version
+      invoke :update_git_version, []
       say("Done.", :green) unless options['quiet']
     end
     
