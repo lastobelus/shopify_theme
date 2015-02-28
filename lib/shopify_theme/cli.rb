@@ -30,7 +30,7 @@ module ShopifyTheme
     IGNORE = %w(config.yml)
     DEFAULT_WHITELIST = %w(layout/ assets/ config/ snippets/ templates/ locales/)
     TIMEFORMAT = "%H:%M:%S"
-
+    PADDING = 15
     tasks.keys.abbrev.each do |shortcut, command|
       map shortcut => command.to_sym
     end
@@ -47,9 +47,9 @@ module ShopifyTheme
     desc "check", "check configuration"
     def check
       if ShopifyTheme.check_config
-        say("Configuration [OK]", :green)
+        say("✅  Configuration [OK]", :green)
       else
-        say("Configuration [FAIL]", :red)
+        say("❌  Configuration [FAIL]", :red)
       end
     end
 
@@ -65,17 +65,17 @@ module ShopifyTheme
       ShopifyTheme.config = {:api_key => api_key, :password => password, :store => store}
 
       theme_name ||= 'Timber'
-      say("Registering #{theme_name} theme on #{store}", :green)
+      say_status(:registering, "#{theme_name} theme on #{store}")
       theme = ShopifyTheme.upload_timber(theme_name, master || false)
 
-      say("Creating directory named #{theme_name}", :green)
+      say_status(:creating,  "directory named #{theme_name}")
       empty_directory(theme_name)
 
-      say("Saving configuration to #{theme_name}", :green)
+      say_status(:saving, "configuration to #{theme_name}")
       ShopifyTheme.config.merge!(theme_id: theme['id'])
       create_file("#{theme_name}/config.yml", ShopifyTheme.config.to_yaml)
 
-      say("Downloading #{theme_name} assets from Shopify")
+      say_status(:downloading, "#{theme_name} assets from Shopify")
       Dir.chdir(theme_name)
       download()
     end
@@ -92,7 +92,7 @@ module ShopifyTheme
 
       assets.each do |asset|
         download_asset(asset)
-        say("#{ShopifyTheme.api_usage} Downloaded: #{asset}", :green) unless options['quiet']
+        say_status(:downloaded, asset, quiet: quiet)
       end
       say("Done.", :green) unless options['quiet']
     end
@@ -111,6 +111,26 @@ module ShopifyTheme
       assets.each do |asset|
         send_asset(asset, options['quiet'])
       end
+      say("Done.", :green) unless options['quiet']
+    end
+
+    desc "update_git_version", "posts the current sha to the theme in snippets/git_version.liquid"
+    def update_git_version
+      unless File.exist?('.git')
+        say("Does not appear to be a git repo", :red)
+        exit(-2)
+      end
+      template = config[:git_version_template]
+      template ||= <<-EOS
+      <!-- 
+      ###GITVERSION###
+      -->
+      EOS
+      asset = options[:git_version_asset] || 'snippets/git_version.liquid'
+      
+      git_version = template.gsub('###GITVERSION###', `git log -1`)
+      File.open(asset, 'w') {|f| f.write(git_version) }
+      send_asset(asset, options['quiet'])
       say("Done.", :green) unless options['quiet']
     end
 
@@ -146,11 +166,12 @@ module ShopifyTheme
     method_option :quiet, :type => :boolean, :default => false
     method_option :keep_files, :type => :boolean, :default => false
     def watch
-      puts "Watching current folder: #{Dir.pwd}"
+      say("\n"+"🔍   #{options[:environment]}  🔍".center(60), :cyan, :bold)
+      say("\n"+"Watching " + set_color(Dir.pwd, :black, :bold))
       watcher do |filename, event|
         filename = filename.gsub("#{Dir.pwd}/", '')
 
-        next unless local_assets_list.include?(filename)
+        next unless (event == :delete) || local_assets_list.include?(filename)
         action = if [:changed, :new].include?(event)
           :send_asset
         elsif event == :delete
@@ -175,6 +196,28 @@ module ShopifyTheme
       end
     end
 
+    desc "test_say_status", "test the output command"
+    def test_say_status(what)
+      show_during(:uploading, what) do
+        sleep 1
+      end
+      say_status(:uploaded, what)
+      show_during(:removing, what) do
+        sleep 1
+      end
+      say_status(:removed, what)
+      show_during(:downloading, what) do
+        sleep 1
+      end
+      say_status(:downloaded, what)
+      say_status(:error, what)
+      say_status(:error, what)
+      report_error("Could not upload #{what}", details:"because of some reasons", time:Time.now)
+      report_warning("there should be", "three lines of", "yellow warnings")
+      say_status(:unknown, "some stuff")
+      say_status(:registering, "a theme on the store")
+      say_status(:saving, "a thingy")
+    end
     protected
 
     def config
@@ -236,25 +279,25 @@ module ShopifyTheme
         data.merge!(:value => content)
       end
 
-      response = show_during("[#{timestamp}] Uploading: #{asset}", quiet) do
+      response = show_during(:uploading, asset, quiet:quiet) do
         ShopifyTheme.send_asset(data)
       end
       if response.success?
-        say("[#{timestamp}] Uploaded: #{asset}", :green) unless quiet
+        say_status(:uploaded, asset) unless quiet
       else
-        report_error(Time.now, "Could not upload #{asset}", response)
+        report_error("Could not upload #{asset}", response:response, time:Time.now)
       end
     end
 
     def delete_asset(key, quiet=false)
       return unless valid?(key)
-      response = show_during("[#{timestamp}] Removing: #{key}", quiet) do
+      response = show_during(:removing, key, quiet:quiet) do
         ShopifyTheme.delete_asset(key)
       end
       if response.success?
-        say("[#{timestamp}] Removed: #{key}", :green) unless quiet
+        say_status(:removed, key, quiet: quiet)
       else
-        report_error(Time.now, "Could not remove #{key}", response)
+        report_error("Could not remove #{key}", response:response, time:Time.now)
       end
     end
 
@@ -265,8 +308,8 @@ module ShopifyTheme
 
     def valid?(key)
       return true if DEFAULT_WHITELIST.include?(key.split('/').first + "/")
-      say("'#{key}' is not in a valid file for theme uploads", :yellow)
-      say("Files need to be in one of the following subdirectories: #{DEFAULT_WHITELIST.join(' ')}", :yellow)
+      report_warning("'#{key}' is not in a valid file for theme uploads.",
+        "Files need to be in one of the following subdirectories:", *DEFAULT_WHITELIST)
       false
     end
 
@@ -276,9 +319,18 @@ module ShopifyTheme
       mime.nil? || !mime.text?
     end
 
-    def report_error(time, message, response)
-      say("[#{timestamp(time)}] Error: #{message}", :red)
-      say("Error Details: #{errors_from_response(response)}", :yellow)
+    def report_error(message, response:nil, details:nil, time:Time.now)
+      say_status(:error, message, time:time, quiet:false)
+      say(set_color(" "*23+"Details".rjust(PADDING), :yellow) + divr + details) if details
+      say(set_color(" "*23+"Response:".rjust(PADDING), :yellow) + divr + errors_from_response(response)) if response
+    end
+
+    def report_warning(*msg)
+      msg = [msg].flatten
+      say_status(:warning, msg.shift)
+      msg.each do |m|
+        say(" "*(PADDING+23) + divr + m)
+      end
     end
 
     def errors_from_response(response)
@@ -298,15 +350,47 @@ module ShopifyTheme
       object
     end
 
-    def show_during(message = '', quiet = false, &block)
-      print(message) unless quiet
+    def show_during(verb, message = '', quiet:false, &block)
+      message_during = status_line(verb, message + '...')
+      print(message_during) unless quiet
       result = yield
-      print("\r#{' ' * message.length}\r") unless quiet
+      print("\r#{' ' * message_during.length}\r") unless quiet
       result
     end
 
     def timestamp(time = Time.now)
       time.strftime(TIMEFORMAT)
+    end
+    
+    def say_status(verb, msg, time:Time.now, quiet:false)
+      say status_line(verb, msg, time:time) unless quiet
+    end
+    
+    def divr
+      set_color(' | ', :black)
+    end
+    
+    def status_line(verb, msg, time:Time.now)
+      env =  set_color(" #{options[:environment]}", :black)
+      verbstr = verb.to_s.capitalize.rjust(PADDING)
+      verbstr = case verb.downcase.to_sym
+      when :uploaded, :uploading
+        set_color("▶️#{verbstr}", :green, :bold)
+      when :downloading, :downloaded
+        set_color("◀️#{verbstr}", :cyan, :bold)
+      when :removing, :removed
+        set_color("❌#{verbstr}", :magenta, :bold)
+      when :error
+        set_color("❗#{verbstr}", :red, :bold)
+      when :warning
+        set_color("⚠#{verbstr}", :yellow, :bold)
+      when :registering, :saving, :creating
+        set_color("➡️#{verbstr}", :blue, :bold)
+      else
+        set_color(" #{verbstr}", :bold)
+      end
+      timestr = time.nil? ? " "*8 : set_color("#{timestamp}", :black)
+      "#{timestr} #{env.center(10)} #{verbstr}#{divr}#{msg}"
     end
   end
 end
