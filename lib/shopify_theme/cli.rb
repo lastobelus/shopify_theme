@@ -114,21 +114,33 @@ module ShopifyTheme
       say("Done.", :green) unless options['quiet']
     end
 
+    desc "update_since_sha [SHA1]", "sends all the files that have been changed since the specified commit."
+    def update_since_sha(sha='')
+      check_for_git
+      changed_assets = `git diff --name-only #{sha}`
+      changed_assets.lines.each do |asset|
+        asset.chomp!
+        next unless local_assets_list.include?(asset)
+        send_asset(asset, options['quiet'])
+      end
+      invoke :update_git_version
+      say("Done.", :green) unless options['quiet']
+    end
+    
     desc "update_git_version", "posts the current sha to the theme in snippets/git_version.liquid"
     def update_git_version
-      unless File.exist?('.git')
-        say("Does not appear to be a git repo", :red)
-        exit(-2)
-      end
+      check_for_git
       template = config[:git_version_template]
       template ||= <<-EOS
-      <!-- 
-      ###GITVERSION###
-      -->
+<!-- 
+###CURRENTCHANGES###
+--------
+###GITVERSION###
+-->
       EOS
       asset = options[:git_version_asset] || 'snippets/git_version.liquid'
       
-      git_version = template.gsub('###GITVERSION###', `git log -1`)
+      git_version = template.gsub('###GITVERSION###', `git log -1`).gsub('###CURRENTCHANGES###', `git status -s`)
       File.open(asset, 'w') {|f| f.write(git_version) }
       send_asset(asset, options['quiet'])
       say("Done.", :green) unless options['quiet']
@@ -392,6 +404,14 @@ module ShopifyTheme
       timestr = time.nil? ? " "*8 : set_color("#{timestamp}", :black)
       "#{timestr} #{env.center(10)} #{verbstr}#{divr}#{msg}"
     end
-  end
+
+    def check_for_git
+      unless File.exist?('.git')
+        say("Does not appear to be a git repo", :red)
+        exit(-2)
+      end
+    end
+
+  end  
 end
 ShopifyTheme.configureMimeMagic
