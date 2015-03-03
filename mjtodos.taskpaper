@@ -1,0 +1,17 @@
+- revamp config with environments
+	- move config to class
+	- global CLI option --environment, check's ENV if not set
+- use guard
+	- only push changes to preview theme
+- store deployed sha in a metafield
+	- how to ensure only committed changes?
+		#!/usr/bin/env bash
+		if git diff --no-ext-diff --quiet --exit-code; then
+		  echo "no changes"
+		else
+		  echo "has changes"
+		fi
+
+- concurrency
+	- semaphore for the header
+		- move response check into the class
