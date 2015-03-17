@@ -132,19 +132,7 @@ module ShopifyTheme
     
     desc "update_git_version", "posts the current sha to the theme in snippets/git_version.liquid"
     def update_git_version
-      check_for_git
-      template = config[:git_version_template]
-      template ||= <<-EOS
-<!-- 
-###CURRENTCHANGES###
---------
-###GITVERSION###
--->
-      EOS
-      asset = options[:git_version_asset] || 'snippets/git_version.liquid'
-      
-      git_version = template.gsub('###GITVERSION###', `git log -1`).gsub('###CURRENTCHANGES###', `git status -s`)
-      File.open(asset, 'w') {|f| f.write(git_version) }
+      asset = update_git_version_snippet
       send_asset(asset, options['quiet'])
       say("Done.", :green) unless options['quiet']
     end
@@ -180,6 +168,7 @@ module ShopifyTheme
     desc "watch", "upload and delete individual theme assets as they change, use the --keep_files flag to disable remote file deletion"
     method_option :quiet, :type => :boolean, :default => false
     method_option :keep_files, :type => :boolean, :default => false
+    method_option :always_update_git_version, :type => :boolean, :default => false
     def watch
       say("\n"+"🔍   #{options[:environment]}  🔍".center(60), :cyan, :bold)
       say("\n"+"Watching " + set_color(Dir.pwd, :black, :bold))
@@ -187,6 +176,7 @@ module ShopifyTheme
         filename = filename.gsub("#{Dir.pwd}/", '')
 
         next unless (event == :delete) || local_assets_list.include?(filename)
+        
         action = if [:changed, :new].include?(event)
           :send_asset
         elsif event == :delete
@@ -196,6 +186,7 @@ module ShopifyTheme
         end
 
         send(action, filename, options['quiet'])
+        update_git_version_snippet if options[:always_update_git_version]
       end
     end
 
@@ -415,6 +406,22 @@ module ShopifyTheme
       end
     end
 
+    def update_git_version_snippet
+      check_for_git
+      template = config[:git_version_template]
+      template ||= <<-EOS
+<!-- 
+###CURRENTCHANGES###
+--------
+###GITVERSION###
+-->
+      EOS
+      asset = options[:git_version_asset] || 'snippets/git_version.liquid'
+      
+      git_version = template.gsub('###GITVERSION###', `git log -1`).gsub('###CURRENTCHANGES###', `git status -s`)
+      File.open(asset, 'w') {|f| f.write(git_version) }
+      asset
+    end
   end  
 end
 ShopifyTheme.configureMimeMagic
