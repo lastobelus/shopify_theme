@@ -1,5 +1,3 @@
-<<<<<<< Local Changes
-
 # Edit Your Shopify Theme Locally
 [![Gem Version](https://badge.fury.io/rb/shopify_theme.svg)](http://badge.fury.io/rb/shopify_theme)
 
@@ -186,5 +184,12 @@ In some cases you may want to add `config/settings_json.js` to the `ignore_files
 
 ### Sass Compilation
 There is no need to compile your .scss files locally when using Shopify theme.  They are automatically compiled upon upload and available as .css files on the web page, retaining the same filename.
-=======
->>>>>>> External Changes
+
+
+## Additional Features from Upstream
+This fork adds some additional commands from the upstream (as well as environments, described earlier):
+
+* Pretty output:  ![pretty output](https://www.dropbox.com/s/p31b6jxb2ebpsgg/Screenshot%202015-04-01%2019.36.43.png?dl=0)
+* ```theme update_git_version``` posts the current sha to the theme in an html comment in snippets/git_version.liquid. Include this snippet in your theme to be able to tell what has been deployed from a page in your store.
+* ```theme update_since_sha [SHA1]``` uploads all the files that have been changed since the specified commit.
+* ```theme current_sha``` fetches and displays snippets/git_version.liquid

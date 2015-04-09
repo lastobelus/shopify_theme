@@ -130,6 +130,13 @@ module ShopifyTheme
       say("Done.", :green) unless options['quiet']
     end
     
+    desc "current_sha", "displays the sha currently in snippets/git_version.liquid in the remote theme"
+    def current_sha
+      git_version = ShopifyTheme.get_asset('snippets/git_version.liquid')
+      say options[:environment], :yellow
+      say git_version["value"]      
+    end
+    
     desc "update_git_version", "posts the current sha to the theme in snippets/git_version.liquid"
     def update_git_version
       asset = update_git_version_snippet
@@ -328,7 +335,7 @@ module ShopifyTheme
     def report_error(message, response:nil, details:nil, time:Time.now)
       say_status(:error, message, time:time, quiet:false)
       say(set_color(" "*23+"Details".rjust(PADDING), :yellow) + divr + details) if details
-      say(set_color(" "*23+"Response:".rjust(PADDING), :yellow) + divr + errors_from_response(response)) if response
+      say(set_color(" "*23+"Response:".rjust(PADDING), :yellow) + divr + errors_from_response(response).inspect) if response
     end
 
     def report_warning(*msg)
