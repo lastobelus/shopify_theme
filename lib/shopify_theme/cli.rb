@@ -95,7 +95,7 @@ module ShopifyTheme
 
       assets.each do |asset|
         download_asset(asset)
-        say_status(:downloaded, asset, quiet: quiet)
+        say_status(:downloaded, asset, quiet: options['quiet'])
       end
       say("Done.", :green) unless options['quiet']
     end
